@@ -9,17 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import FormInput from "./CustomFormInput";
+import { Form } from "@/components/ui/form";
 import CustomFormInput from "./CustomFormInput";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -37,7 +27,16 @@ const formSchema = ({ type }: { type: "sign-up" | "sign-in" }) =>
     postalCode:
       type === "sign-in" ? z.string().optional() : z.string().length(5),
     dateOfBirth: type === "sign-in" ? z.string().optional() : z.string().date(),
-    ssn: type === "sign-in" ? z.string().optional() : z.string().length(9),
+    // ssn: type === "sign-in" ? z.string().optional() : z.string().length(9),
+    ssn:
+      type === "sign-in"
+        ? z.string().optional()
+        : z
+            .string()
+            .regex(
+              /^\d{3}-\d{2}-\d{4}$/,
+              "SSN must be in the format XXX-XX-XXXX"
+            ),
     // sign up & sign in
     email: z.string().email(),
     password: z.string().min(8),
@@ -47,6 +46,7 @@ const AuthForm = ({ type }: { type: "sign-in" | "sign-up" }) => {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
   // 1. Define your form.
   const form = useForm<z.infer<ReturnType<typeof formSchema>>>({
     resolver: zodResolver(formSchema({ type })),
@@ -70,27 +70,26 @@ const AuthForm = ({ type }: { type: "sign-in" | "sign-up" }) => {
   const onSubmit = async (values: z.infer<ReturnType<typeof formSchema>>) => {
     setIsLoading(true);
 
-    // try {
-    //   // Sign up with Appwrite & create plaid token
-
-    //   if (type === "sign-up") {
-    //     const newUser = await signUp(values);
-    //     setUser(newUser);
-    //   }
-    //   if (type === "sign-in") {
-    //     const response = await signIn({
-    //       email: values.email,
-    //       password: values.password,
-    //     });
-    //     if (response) {
-    //       router.push("/");
-    //     }
-    //   }
-    // } catch (error) {
-    //   console.error(error);
-    // } finally {
-    //   setIsLoading(false);
-    // }
+    try {
+      // Sign up with Appwrite & create plaid token
+      if (type === "sign-up") {
+        const newUser = await signUp(values as SignUpParams);
+        setUser(newUser);
+      }
+      if (type === "sign-in") {
+        const response = await signIn({
+          email: values.email,
+          password: values.password,
+        } as signInProps);
+        if (response) {
+          router.push("/");
+        }
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
