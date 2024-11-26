@@ -2,7 +2,7 @@
 
 import { cookies } from "next/headers";
 import { createAdminClient, createSessionClient } from "../server/appwrite";
-import { ID } from "node-appwrite";
+import { ID, Query } from "node-appwrite";
 import { encryptId, extractCustomerIdFromUrl, parseStringify } from "../utils";
 import {
   CountryCode,
@@ -20,8 +20,23 @@ const {
   APPWRITE_BANK_COLLECTION_ID,
 } = process.env;
 
+export const getUserInfo = async ({ userId }: GetUserInfoProps) => {
+  try {
+    const { database } = await createAdminClient();
+    const user = await database.listDocuments(
+      APPWRITE_DATABASE_ID!,
+      APPWRITE_USER_COLLECTION_ID!,
+      [Query.equal("userId", [userId])]
+    );
+
+    return parseStringify(user.documents[0]);
+  } catch (error) {
+    console.error(error);
+  }
+};
+
 // Appwrite
-export const signIn = async ({ email, password }: SignInProps) => {
+export const signIn = async ({ email, password }: SignInParams) => {
   try {
     const { account } = await createAdminClient();
     const session = await account.createEmailPasswordSession(email, password);
@@ -33,7 +48,8 @@ export const signIn = async ({ email, password }: SignInProps) => {
       secure: true,
     });
 
-    return parseStringify(session);
+    const user = await getUserInfo({ userId: session.userId });
+    return parseStringify(user);
   } catch (error) {
     console.error(error);
     return null;
@@ -99,12 +115,10 @@ export const signUp = async ({ password, ...userData }: SignUpParams) => {
 
 export const getLoggedInUser = async () => {
   try {
-    const sessionCookie = cookies().get("appwrite-session");
-    console.log("Session cookie:", sessionCookie);
-
     const { account } = await createSessionClient();
-    const user = await account.get();
-    console.log("Fetched user:", user);
+    const result = await account.get();
+
+    const user = await getUserInfo({ userId: result.$id });
 
     return parseStringify(user);
   } catch (error) {
@@ -131,7 +145,7 @@ export const createLinkToken = async (user: User) => {
         client_user_id: user.$id,
       },
       client_name: `${user.firstName} ${user.lastName}`,
-      products: ["auth"] as Products[],
+      products: [Products.Transactions, Products.Auth],
       language: "en",
       country_codes: ["US"] as CountryCode[],
     };
@@ -232,5 +246,33 @@ export const exchangePublicToken = async ({
   } catch (error) {
     // Log any errors that occur during the process
     console.error("An error occurred while creating exchanging token:", error);
+  }
+};
+export const getBanks = async ({ userId }: GetBanksProps) => {
+  try {
+    const { database } = await createAdminClient();
+    const banks = await database.listDocuments(
+      APPWRITE_DATABASE_ID!,
+      APPWRITE_BANK_COLLECTION_ID!,
+      [Query.equal("userId", [userId])]
+    );
+
+    return parseStringify(banks.documents);
+  } catch (error) {
+    console.error(error);
+  }
+};
+export const getBank = async ({ documentId }: GetBankProps) => {
+  try {
+    const { database } = await createAdminClient();
+    const bank = await database.listDocuments(
+      APPWRITE_DATABASE_ID!,
+      APPWRITE_BANK_COLLECTION_ID!,
+      [Query.equal("$id", [documentId])]
+    );
+
+    return parseStringify(bank.documents[0]);
+  } catch (error) {
+    console.error(error);
   }
 };
