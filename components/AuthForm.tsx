@@ -15,13 +15,14 @@ import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { signUp } from "@/lib/actions/user.actions";
 import { signIn } from "@/lib/actions/user.actions";
+import PlaidLink from "./PlaidLink";
 
 const formSchema = ({ type }: { type: "sign-up" | "sign-in" }) =>
   z.object({
     // sign up
     firstName: type === "sign-in" ? z.string().optional() : z.string().min(3),
     lastName: type === "sign-in" ? z.string().optional() : z.string().min(3),
-    address: type === "sign-in" ? z.string().optional() : z.string().max(50),
+    address1: type === "sign-in" ? z.string().optional() : z.string().max(50),
     city: type === "sign-in" ? z.string().optional() : z.string().max(50),
     state: type === "sign-in" ? z.string().optional() : z.string().length(2),
     postalCode:
@@ -56,7 +57,7 @@ const AuthForm = ({ type }: { type: "sign-in" | "sign-up" }) => {
       ...(type === "sign-up" && {
         firstName: "",
         lastName: "",
-        address: "",
+        address1: "",
         city: "",
         state: "",
         postalCode: "",
@@ -67,20 +68,32 @@ const AuthForm = ({ type }: { type: "sign-in" | "sign-up" }) => {
   });
 
   // 2. Define a submit handler.
-  const onSubmit = async (values: z.infer<ReturnType<typeof formSchema>>) => {
+  const onSubmit = async (data: z.infer<ReturnType<typeof formSchema>>) => {
     setIsLoading(true);
 
     try {
       // Sign up with Appwrite & create plaid token
+      const userData = {
+        firstName: data.firstName!,
+        lastName: data.lastName!,
+        address1: data.address1!,
+        city: data.city!,
+        state: data.state!,
+        postalCode: data.postalCode!,
+        dateOfBirth: data.dateOfBirth!,
+        ssn: data.ssn!,
+        email: data.email,
+        password: data.password,
+      };
       if (type === "sign-up") {
-        const newUser = await signUp(values as SignUpParams);
+        const newUser = await signUp(userData as SignUpParams);
         setUser(newUser);
       }
       if (type === "sign-in") {
         const response = await signIn({
-          email: values.email,
-          password: values.password,
-        } as signInProps);
+          email: data.email,
+          password: data.password,
+        } as SignInProps);
         if (response) {
           router.push("/");
         }
@@ -118,7 +131,9 @@ const AuthForm = ({ type }: { type: "sign-in" | "sign-up" }) => {
         </div>
       </header>
       {user ? (
-        <div className="flex flex-col gap-4">{/* TODO: Plaid Link */}</div>
+        <div className="flex flex-col gap-4">
+          <PlaidLink user={user} variant="primary" />
+        </div>
       ) : (
         <>
           <Form {...form}>
@@ -144,7 +159,7 @@ const AuthForm = ({ type }: { type: "sign-in" | "sign-up" }) => {
 
                   <CustomFormInput<ReturnType<typeof formSchema>>
                     control={form.control}
-                    name="address"
+                    name="address1"
                     label="Address"
                     type="text"
                     placeholder="Enter your address"
